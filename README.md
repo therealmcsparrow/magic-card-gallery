@@ -28,3 +28,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Looks are added by pull request, under y
 ## Reporting a problem
 
 To report a look that should not be listed, use the Report link on its tile or open a public issue. For a security problem, read [SECURITY.md](SECURITY.md) and report it privately.
+
+## Licence
+
+The scripts and workflows are MIT licensed. Each look carries its own licence in meta.json.

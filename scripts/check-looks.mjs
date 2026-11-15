@@ -12,9 +12,14 @@ const META_MAX_BYTES = 4 * 1024;
 const PREVIEW_MAX_BYTES = 96 * 1024;
 const VENDOR_MAX_BYTES = 1024 * 1024;
 const LOCK_MAX_BYTES = 16 * 1024;
-const NAME_MAX_POINTS = 40;
-const AUTHOR_MAX_POINTS = 80;
-const ID_RE = /^[a-z0-9][a-z0-9-]{0,47}$/;
+// The card's rules for an entry (look-index: LOOK_ID_RE, LOOK_AUTHOR_RE, LOOK_NAME_MAX_CHARS and the name check in verify-index).
+export const NAME_MAX_POINTS = 40;
+export const ID_RE = /^[a-z0-9](?:[a-z0-9-]{1,38}[a-z0-9])$/;
+/** GitHub login shape. */
+export const AUTHOR_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$/;
+/** C0 and C1 controls, line and paragraph separators, and the bidirectional formatting characters. */
+const forbiddenChar = (c) =>
+  c <= 0x1f || (c >= 0x7f && c <= 0x9f) || c === 0x61c || c === 0x200e || c === 0x200f || c === 0x2028 || c === 0x2029 || (c >= 0x202a && c <= 0x202e) || (c >= 0x2066 && c <= 0x2069);
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const LICENCES = new Set(['CC0-1.0', 'CC-BY-4.0', 'CC-BY-SA-4.0', 'MIT']);
 const VENDORED = ['look-kit.mjs', 'look-fixtures.json'];
@@ -185,14 +190,16 @@ async function checkOne(kit, dir, id, reencode) {
     add('meta', 'meta.json', 'meta.json must be an object.');
   }
   if (meta) {
-    if (typeof meta.id !== 'string' || !ID_RE.test(meta.id)) add('meta', 'meta.json', 'id must be lower-case letters, digits and hyphens (1 to 48 characters).');
+    if (typeof meta.id !== 'string' || !ID_RE.test(meta.id)) add('meta', 'meta.json', 'id must be 3 to 40 characters: lower-case letters, digits and hyphens, not starting or ending with a hyphen.');
     else if (meta.id !== id) add('meta', 'meta.json', `id "${meta.id}" must match the folder name "${id}".`);
     const name = typeof meta.name === 'string' ? meta.name.normalize('NFC') : null;
     if (name === null || [...name].length < 1 || [...name].length > NAME_MAX_POINTS) {
       add('name_length', 'meta.json', `name must be 1 to ${NAME_MAX_POINTS} characters after NFC normalisation.`);
+    } else if ([...name].some((ch) => forbiddenChar(ch.codePointAt(0)))) {
+      add('meta', 'meta.json', 'name must not contain control, line separator or bidirectional characters.');
     }
-    if (typeof meta.author !== 'string' || [...meta.author].length < 1 || [...meta.author].length > AUTHOR_MAX_POINTS) {
-      add('meta', 'meta.json', `author must be 1 to ${AUTHOR_MAX_POINTS} characters.`);
+    if (typeof meta.author !== 'string' || !AUTHOR_RE.test(meta.author)) {
+      add('meta', 'meta.json', 'author must be a GitHub username: letters, digits and hyphens, 1 to 39 characters, starting with a letter or digit.');
     }
     if (typeof meta.licence !== 'string' || !LICENCES.has(meta.licence)) {
       add('licence', 'meta.json', 'licence must be one of CC0-1.0, CC-BY-4.0, CC-BY-SA-4.0 or MIT (SPDX id, exact case).');

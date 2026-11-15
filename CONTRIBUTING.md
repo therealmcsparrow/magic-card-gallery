@@ -7,6 +7,10 @@ Thank you for sharing a look. A look is style only. This page lists what a pull 
 - The look must be your own work, or its licence must let you share it under the licence you choose.
 - Your name or GitHub username and the licence are shown publicly with the look.
 - You send it with your own GitHub account, under GitHub's terms and privacy policy.
+- By opening a pull request, you confirm that you may share the look, and you license it to everyone under the licence you wrote in meta.json.
+- Anyone who uses the gallery may copy the look's style settings into their own card. For CC-BY-4.0, CC-BY-SA-4.0 and MIT, the author and licence shown with the look in the gallery and in this repository are the credit.
+- Your name or username and the licence are published in the look list and stay in this repository's Git history. Removing a look stops it being listed, but it cannot recall copies people already made or erase the history.
+- The previews must be your own pictures, made from the look itself. Do not use screenshots, logos or artwork of other people's products, games, films or brands, and do not name them in the look.
 
 ## What to add
 
@@ -22,9 +26,9 @@ Links and folders inside `looks/<id>/` are refused. Each file must be valid UTF-
 
 ### meta.json
 
-- `id`: lower-case letters, digits and hyphens, 1 to 48 characters, starting with a letter or digit. It must match the folder name.
-- `name`: 1 to 40 characters.
-- `author`: 1 to 80 characters.
+- `id`: lower-case letters, digits and hyphens, 3 to 40 characters, starting and ending with a letter or digit. It must match the folder name.
+- `name`: 1 to 40 characters (counted as Unicode code points after NFC normalisation), with no control, line separator or bidirectional formatting characters.
+- `author`: your GitHub username: letters, digits and hyphens, 1 to 39 characters, starting with a letter or digit.
 - `licence`: one of `CC0-1.0`, `CC-BY-4.0`, `CC-BY-SA-4.0` or `MIT`, written exactly like that.
 
 ### look.json
