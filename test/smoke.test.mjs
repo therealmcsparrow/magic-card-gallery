@@ -1,4 +1,4 @@
-// AC18, AC19, AC20 (T18 red tests): scripts/smoke.mjs#smoke(options) fetches the live site and resolves { ok, failures: [{ code, message }] }; never throws.
+// scripts/smoke.mjs#smoke(options) fetches the live site and resolves { ok, failures: [{ code, message }] }; never throws.
 // options: { baseUrl (ends with "/"), previousIndex (signed text of the index that was live before, or null), verify (text => VerifiedIndex),
 //            retries?: { attempts, delayMs } }. `verify` defaults to the vendored verifyIndex called with ONE argument; the tests inject
 //            their own key pair through `verify`, because scripts/smoke.mjs never passes a key list itself (grep below).
@@ -97,14 +97,14 @@ function assertFailed(r, code) {
   for (const f of r.failures) assert.ok(typeof f.message === 'string' && f.message.length > 0);
 }
 
-test('AC18: a good live site passes', async () => {
+test('a good live site passes', async () => {
   const s = await site();
   const r = await check(s);
   assert.deepEqual(r.failures, []);
   assert.equal(r.ok, true);
 });
 
-test('AC20: a previous index with a lower seq is refused by the live one, so the smoke passes', async () => {
+test('a previous index with a lower seq is refused by the live one, so the smoke passes', async () => {
   const prev = await site(3, 3);
   const live = await site(4, 4);
   const r = await check(live, { previousIndex: prev.text });
@@ -112,25 +112,25 @@ test('AC20: a previous index with a lower seq is refused by the live one, so the
   assert.equal(r.ok, true);
 });
 
-test('AC20: a previous index that the live one would not refuse fails (same envelope)', async () => {
+test('a previous index that the live one would not refuse fails (same envelope)', async () => {
   const live = await site(4, 4);
   assertFailed(await check(live, { previousIndex: live.text }), 'rollback_not_refused');
 });
 
-test('AC20: a previous index with a higher seq is not refused either, so it fails', async () => {
+test('a previous index with a higher seq is not refused either, so it fails', async () => {
   const prev = await site(8, 8);
   const live = await site(4, 4);
   assertFailed(await check(live, { previousIndex: prev.text }), 'rollback_not_refused');
 });
 
-test('AC18: tampered look bytes fail with look_hash', async () => {
+test('tampered look bytes fail with look_hash', async () => {
   const s = await site();
   const e = s.payload.looks[0];
   const r = await check(s, { over: { [`looks/${e.sha512}.json`]: Buffer.from(PLAIN.replace('ffffff', '000000')) } });
   assertFailed(r, 'look_hash');
 });
 
-test('AC18: hash drift (the entry names a hash the served bytes do not have) fails with look_hash', async () => {
+test('hash drift (the entry names a hash the served bytes do not have) fails with look_hash', async () => {
   const s = await site();
   const looks = s.payload.looks.map((e, i) => (i === 0 ? { ...e, sha512: sha512(Buffer.from('other')) } : e));
   const doctored = sign({ ...s.payload, looks });
@@ -139,13 +139,13 @@ test('AC18: hash drift (the entry names a hash the served bytes do not have) fai
   assertFailed(await check(s, { over }), 'look_hash');
 });
 
-test('AC18: a bytes member that differs from the served look fails with look_hash', async () => {
+test('a bytes member that differs from the served look fails with look_hash', async () => {
   const s = await site();
   const looks = s.payload.looks.map((e, i) => (i === 0 ? { ...e, bytes: e.bytes + 1 } : e));
   assertFailed(await check(s, { over: { 'index.json': Buffer.from(sign({ ...s.payload, looks })) } }), 'look_hash');
 });
 
-test('AC18: a traits mismatch (animated or fonts) fails with look_traits', async () => {
+test('a traits mismatch (animated or fonts) fails with look_traits', async () => {
   const s = await site();
   for (const patch of [{ animated: true }, { fonts: ['Lato'] }]) {
     const looks = s.payload.looks.map((e, i) => (i === 0 ? { ...e, ...patch } : e));
@@ -153,13 +153,13 @@ test('AC18: a traits mismatch (animated or fonts) fails with look_traits', async
   }
 });
 
-test('AC19: a preview whose bytes differ from the entry hash fails with preview_hash', async () => {
+test('a preview whose bytes differ from the entry hash fails with preview_hash', async () => {
   const s = await site();
   const e = s.payload.looks[0];
   assertFailed(await check(s, { over: { [`previews/${e.preview}.webp`]: preview('good.webp') } }), 'preview_hash');
 });
 
-test('AC19: an entry preview hash that differs from the served file fails with preview_hash', async () => {
+test('an entry preview hash that differs from the served file fails with preview_hash', async () => {
   const s = await site();
   const e0 = s.payload.looks[0];
   const drift = sha512(Buffer.from('drift'));
@@ -168,13 +168,13 @@ test('AC19: an entry preview hash that differs from the served file fails with p
   assertFailed(await check(s, { over }), 'preview_hash');
 });
 
-test('AC18: an index signed by an unknown key fails with index_verify', async () => {
+test('an index signed by an unknown key fails with index_verify', async () => {
   const s = await site();
   const other = [rawPub(crypto.generateKeyPairSync('ed25519')), rawPub(crypto.generateKeyPairSync('ed25519'))];
   assertFailed(await check(s, { verifyFn: (t) => verifyIndex(t, other) }), 'index_verify');
 });
 
-test('AC18: a tampered signed payload fails with index_verify', async () => {
+test('a tampered signed payload fails with index_verify', async () => {
   const s = await site();
   const env = JSON.parse(s.text);
   const bytes = Buffer.from(env.payload, 'base64');
@@ -183,7 +183,7 @@ test('AC18: a tampered signed payload fails with index_verify', async () => {
   assertFailed(await check(s, { over }), 'index_verify');
 });
 
-test('AC18: a missing index, look or preview fails with fetch', async () => {
+test('a missing index, look or preview fails with fetch', async () => {
   const s = await site();
   const e = s.payload.looks[0];
   assertFailed(await check(s, { over: { 'index.json': null } }), 'fetch');
@@ -191,12 +191,12 @@ test('AC18: a missing index, look or preview fails with fetch', async () => {
   assertFailed(await check(s, { over: { [`previews/${e.preview}.webp`]: null } }), 'fetch');
 });
 
-test('AC18: an unreachable site fails with fetch and does not throw', async () => {
+test('an unreachable site fails with fetch and does not throw', async () => {
   const r = await smoke({ baseUrl: 'http://127.0.0.1:9/', previousIndex: null, verify, retries: RETRY });
   assertFailed(r, 'fetch');
 });
 
-test('AC20: scripts/smoke.mjs never calls verifyIndex with a second argument (grep)', () => {
+test('scripts/smoke.mjs never calls verifyIndex with a second argument (grep)', () => {
   const src = fs.readFileSync(path.join(REPO, 'scripts', 'smoke.mjs'), 'utf8');
   assert.ok(/verifyIndex/.test(src), 'smoke.mjs must use the vendored verifyIndex');
   const calls = [...src.matchAll(/verifyIndex\s*\(/g)];

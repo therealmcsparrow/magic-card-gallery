@@ -1,4 +1,4 @@
-// AC16 (preview image), look-index "Previews": scripts/reencode-preview.mjs#reencodePreview(bytes)
+// look-index "Previews": scripts/reencode-preview.mjs#reencodePreview(bytes)
 // resolves { ok: true, bytes, width, height } or { ok: false, code, message } and never throws.
 // Failure codes: not_webp, input_too_big, too_large_side, animated, malformed, decode_warning, output_too_big.
 import test from 'node:test';
@@ -32,7 +32,7 @@ const fail = async (bytes, code) => {
   return r;
 };
 
-test('AC16: a clean still WebP comes back re-encoded, same size, no metadata', async () => {
+test('a clean still WebP comes back re-encoded, same size, no metadata', async () => {
   const input = preview('good.webp');
   const r = await reencodePreview(input);
   assert.equal(r.ok, true);
@@ -40,7 +40,7 @@ test('AC16: a clean still WebP comes back re-encoded, same size, no metadata', a
   assertCleanStill(Buffer.from(r.bytes), input);
 });
 
-test('AC16: EXIF, XMP and ICC chunks in the input never reach the output', async () => {
+test('EXIF, XMP and ICC chunks in the input never reach the output', async () => {
   const input = preview('with-metadata.webp');
   const names = chunksOf(input).map((c) => c.fourcc);
   for (const n of ['EXIF', 'XMP ', 'ICCP']) assert.ok(names.includes(n), `fixture has ${n}`);
@@ -51,7 +51,7 @@ test('AC16: EXIF, XMP and ICC chunks in the input never reach the output', async
   assert.ok(!text.includes('secret-exif') && !text.includes('secret-xmp'));
 });
 
-test('AC16: re-encoding twice gives a clean still both times', async () => {
+test('re-encoding twice gives a clean still both times', async () => {
   const first = await reencodePreview(preview('good.webp'));
   assert.equal(first.ok, true);
   const second = await reencodePreview(Buffer.from(first.bytes));
@@ -61,7 +61,7 @@ test('AC16: re-encoding twice gives a clean still both times', async () => {
   assert.deepEqual(sizeOf(out), { width: 64, height: 48 });
 });
 
-test('AC16: the 1024 x 1024 boundary passes', async () => {
+test('the 1024 x 1024 boundary passes', async () => {
   const input = preview('side-1024.webp');
   const r = await reencodePreview(input);
   assert.equal(r.ok, true);
@@ -69,32 +69,32 @@ test('AC16: the 1024 x 1024 boundary passes', async () => {
   assertCleanStill(Buffer.from(r.bytes), input);
 });
 
-test('AC16: a side over 1024 px is refused from the header', async () => {
+test('a side over 1024 px is refused from the header', async () => {
   await fail(preview('side-1025.webp'), 'too_large_side');
 });
 
-test('AC16: a huge canvas in the header is refused before any pixel decode', async () => {
+test('a huge canvas in the header is refused before any pixel decode', async () => {
   // The pixel data is truncated: a decoder would report a malformed file, so too_large_side proves the header was read first.
   await fail(preview('header-huge-truncated.webp'), 'too_large_side');
 });
 
-test('AC16: an animated WebP is refused', async () => {
+test('an animated WebP is refused', async () => {
   await fail(preview('animated.webp'), 'animated');
 });
 
-test('AC16: a malformed WebP is refused (bad chunk size, truncated VP8 data)', async () => {
+test('a malformed WebP is refused (bad chunk size, truncated VP8 data)', async () => {
   await fail(preview('bad-chunk-size.webp'), 'malformed');
   await fail(preview('truncated-data.webp'), 'malformed');
 });
 
-test('AC16: not a WebP is refused (PNG, empty, wrong RIFF form, short)', async () => {
+test('not a WebP is refused (PNG, empty, wrong RIFF form, short)', async () => {
   await fail(preview('not-webp.png'), 'not_webp');
   await fail(Buffer.alloc(0), 'not_webp');
   await fail(Buffer.from('RIFF\x04\x00\x00\x00WAVE'), 'not_webp');
   await fail(Buffer.from('RIFF'), 'not_webp');
 });
 
-test('AC16: an input over 96 KiB is refused before decoding', async () => {
+test('an input over 96 KiB is refused before decoding', async () => {
   const big = withExtraChunk(preview('good.webp'), 'JUNK', Buffer.alloc(MAX));
   assert.ok(big.length > MAX);
   await fail(big, 'input_too_big');
@@ -104,13 +104,13 @@ test('AC16: an input over 96 KiB is refused before decoding', async () => {
   assert.equal(r.ok, true, 'exactly 96 KiB is allowed');
 });
 
-test('AC16: an output over 96 KiB fails the look', async () => {
+test('an output over 96 KiB fails the look', async () => {
   const input = preview('output-too-big.webp');
   assert.ok(input.length <= MAX, 'fixture input is within the limit');
   await fail(input, 'output_too_big');
 });
 
-test('AC16: it never throws on hostile bytes', async () => {
+test('it never throws on hostile bytes', async () => {
   const good = preview('good.webp');
   for (let i = 0; i < good.length; i += 7) {
     const b = Buffer.from(good);
@@ -123,7 +123,7 @@ test('AC16: it never throws on hostile bytes', async () => {
 
 // A header-valid file that decodes with a warning cannot be built as a fixture (every variant tried either decodes cleanly or
 // errors), so the decoder settings are pinned from the source instead (look-index "Previews").
-test('AC16: sharp is run with the pinned safety options', () => {
+test('sharp is run with the pinned safety options', () => {
   const src = fs.readFileSync(path.join(REPO, 'scripts', 'reencode-preview.mjs'), 'utf8');
   assert.match(src, /failOn:\s*['"]warning['"]/, 'decoder warnings are failures');
   assert.match(src, /limitInputPixels:\s*(1024\s*\*\s*1024|1048576|LIMIT\w*|\w*MAX\w*)/, 'pixel limit set from the 1024 side');
