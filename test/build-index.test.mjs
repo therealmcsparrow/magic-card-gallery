@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { buildIndex } from '../scripts/build-index.mjs';
-import { REPO, preview } from './fixtures/webp-tools.mjs';
+import { REPO, preview, withExtraChunk } from './fixtures/webp-tools.mjs';
 
 const { verifyIndex } = await import('../vendor/look-kit.mjs');
 const MAX_SEQ = 2 ** 31 - 1;
@@ -26,7 +26,8 @@ const KEYS = [rawPub(MAIN), rawPub(SPARE)];
 const sha512 = (b) => crypto.createHash('sha512').update(b).digest('hex');
 const SUBMITTED = preview('good.webp');
 const REENCODED = preview('side-1024.webp');
-const PLAIN = '{"grammar":1,"modules":{"icon":{"design":{"color":"#ffffff"}}}}';
+const OTHER_REENCODED = withExtraChunk(REENCODED, 'JUNK', [1, 2, 3, 4]);
+const PLAIN ='{"grammar":1,"modules":{"icon":{"design":{"color":"#ffffff"}}}}';
 const FONT = '{"grammar":1,"modules":{"text":{"design":{"font_family":"Roboto"}}}}';
 const ANIM = '{"grammar":1,"modules":{"*":{"design":{"color":"#ffffff","animations":[{"preset":"pulse","trigger":"always"}]}}}}';
 const NOW = new Date('2026-12-01T10:20:30.000Z');
@@ -50,7 +51,7 @@ function setup(looks = [{ id: 'calm-slate' }]) {
     fs.writeFileSync(path.join(d, 'look.json'), l.look ?? PLAIN);
     fs.writeFileSync(path.join(d, 'meta.json'), JSON.stringify({ id: l.id, name: l.name ?? 'Calm slate', author: 'therealmcsparrow', licence: 'CC0-1.0' }));
     fs.writeFileSync(path.join(d, 'preview.webp'), SUBMITTED);
-    fs.writeFileSync(path.join(previewsDir, l.id + '.webp'), REENCODED);
+    fs.writeFileSync(path.join(previewsDir, l.id + '.webp'), l.reencoded ?? REENCODED);
   }
   return { root, previewsDir, outDir: path.join(tmp(), 'out') };
 }
@@ -127,7 +128,7 @@ test('AC19: the preview hash and file are the re-encoded bytes; no submitted pre
 });
 
 test('AC19: the output holds index.json, looks/ and previews/ only, and `files` lists exactly those', async () => {
-  const { r, s } = await run([{ id: 'calm-slate' }, { id: 'warm-dusk', look: FONT, name: 'Warm dusk' }]);
+  const { r, s } = await run([{ id: 'calm-slate' }, { id: 'warm-dusk', look: FONT, name: 'Warm dusk', reencoded: OTHER_REENCODED }]);
   const files = walk(s.outDir).sort();
   assert.deepEqual([...r.files].sort(), files);
   assert.equal(files.length, 5);
