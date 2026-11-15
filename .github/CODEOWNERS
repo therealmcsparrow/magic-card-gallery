@@ -1,0 +1,8 @@
+# A pull request runs its own checks, so the files that define them need the owner's review as well as the looks.
+looks/ @therealmcsparrow
+.github/ @therealmcsparrow
+scripts/ @therealmcsparrow
+vendor/ @therealmcsparrow
+look-kit.lock.json @therealmcsparrow
+package.json @therealmcsparrow
+package-lock.json @therealmcsparrow

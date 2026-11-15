@@ -1,0 +1,14 @@
+{
+  "name": "magic-card-gallery",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Looks gallery for Magic Card: community looks, checked on every pull request.",
+  "scripts": {
+    "check": "node scripts/check-looks.mjs",
+    "test": "node --test test/check-looks.test.mjs test/reencode-preview.test.mjs test/build-index.test.mjs test/smoke.test.mjs"
+  },
+  "dependencies": {
+    "sharp": "0.35.5"
+  }
+}

@@ -1,0 +1,74 @@
+name: look-ci
+
+# Required check for every pull request. It runs the pull request's own scripts with no secret and a read-only token,
+# so the paths that define these checks (.github/, scripts/, vendor/, the lock, package files) have a named owner in CODEOWNERS.
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: look-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  look-ci:
+    name: look-ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm audit signatures
+
+      # The vendored look kit must be byte-identical to the attested release asset of the card tag in look-kit.lock.json.
+      - name: Verify vendored look kit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          repo=$(jq -er '.card_repo' look-kit.lock.json)
+          tag=$(jq -er '.card_tag' look-kit.lock.json)
+          [[ "$repo" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]
+          [[ "$tag" =~ ^[0-9A-Za-z._-]+$ ]]
+          work=$(mktemp -d)
+          for name in look-kit.mjs look-fixtures.json; do
+            gh release download "$tag" --repo "$repo" --pattern "$name" --dir "$work"
+            want=$(jq -er --arg n "$name" '.files[] | select(.asset == $n) | .sha256' look-kit.lock.json)
+            got_release=$(sha256sum "$work/$name" | cut -d' ' -f1)
+            got_vendor=$(sha256sum "vendor/$name" | cut -d' ' -f1)
+            [ "$got_release" = "$want" ] || { echo "release asset $name differs from the lock"; exit 1; }
+            [ "$got_vendor" = "$want" ] || { echo "vendor/$name differs from the lock"; exit 1; }
+            gh attestation verify "$work/$name" --repo "$repo" --signer-workflow "$repo/.github/workflows/release.yml"
+          done
+
+      - name: Install gitleaks
+        run: |
+          set -euo pipefail
+          version=8.30.1
+          sha256=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          curl --fail --silent --show-error --location --max-filesize 33554432 \
+            --output "$RUNNER_TEMP/gitleaks.tar.gz" \
+            "https://github.com/gitleaks/gitleaks/releases/download/v${version}/gitleaks_${version}_linux_x64.tar.gz"
+          echo "${sha256}  $RUNNER_TEMP/gitleaks.tar.gz" | sha256sum --check --strict
+          mkdir "$RUNNER_TEMP/gitleaks"
+          tar -xzf "$RUNNER_TEMP/gitleaks.tar.gz" -C "$RUNNER_TEMP/gitleaks" gitleaks
+
+      - name: Secret scan
+        run: '"$RUNNER_TEMP/gitleaks/gitleaks" git --config .gitleaks.toml --redact --no-banner --verbose .'
+
+      - name: Check looks
+        run: node scripts/check-looks.mjs
+
+      - name: Check tests
+        run: node --test test/check-looks.test.mjs test/reencode-preview.test.mjs

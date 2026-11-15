@@ -1,0 +1,11 @@
+title = "magic-card-gallery"
+
+[extend]
+useDefault = true
+
+# Private keys in PEM form: the index signing key must never reach this repository.
+[[rules]]
+id = "pem-private-key"
+description = "PEM private key block"
+regex = '''-----BEGIN (?:[A-Z0-9]+ )?PRIVATE KEY-----'''
+keywords = ["private key"]

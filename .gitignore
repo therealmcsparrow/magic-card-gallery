@@ -1,0 +1,5 @@
+node_modules/
+
+# The check scripts are part of the repository.
+!/scripts/
+!/scripts/*
