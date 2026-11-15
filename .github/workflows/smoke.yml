@@ -1,0 +1,29 @@
+name: smoke
+
+# Manual re-run of the live-site check (SP2: a workflow_run trigger has no delivery guarantee, so the deploy workflow runs the
+# smoke test itself as a job; this is the fallback when someone wants to check the site again). No secret, read-only token.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SITE_URL: https://therealmcsparrow.github.io/magic-card-gallery/
+
+jobs:
+  smoke:
+    name: smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - name: Smoke test the live site
+        run: node scripts/smoke.mjs "$SITE_URL"

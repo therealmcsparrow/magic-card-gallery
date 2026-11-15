@@ -1,6 +1,5 @@
 // Preview re-encode (look-index "Previews"): header checks first, then one pinned decode and a clean still WebP out.
 // It reads bytes and returns bytes; it never writes a file and never throws. Run it only in jobs that hold no secret.
-import sharp from 'sharp';
 
 const MAX_BYTES = 96 * 1024;
 const MAX_SIDE = 1024;
@@ -61,6 +60,8 @@ export async function reencodePreview(input) {
     if (!names) return refuse('malformed', 'The WebP chunk sizes do not match the file.');
     if (names.includes('ANIM') || names.includes('ANMF')) return refuse('animated', 'The preview is animated; use a still image.');
 
+    // Loaded only here so the index and check jobs never load the native decoder.
+    const { default: sharp } = await import('sharp');
     let out;
     try {
       out = await sharp(bytes, { limitInputPixels: MAX_PIXELS, failOn: 'warning', animated: false })
