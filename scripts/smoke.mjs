@@ -11,7 +11,7 @@ const FETCH_TIMEOUT_MS = 10_000;
 const MAX_BYTES = 1024 * 1024;
 const SHA512_RE = /^[0-9a-f]{128}$/;
 const SHA256_RE = /^[0-9a-f]{64}$/;
-// SP2: the edge may serve the old index for up to ten minutes. 30 s for the first two minutes, then 60 s, 15 minutes in all.
+// The edge may serve the old index for up to ten minutes. 30 s for the first two minutes, then 60 s, 15 minutes in all.
 const DEFAULT_DELAYS = [...Array(4).fill(30_000), ...Array(13).fill(60_000)];
 
 const failure = (code, message) => ({ code, message });

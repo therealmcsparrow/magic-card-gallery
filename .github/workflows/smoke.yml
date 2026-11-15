@@ -1,6 +1,6 @@
 name: smoke
 
-# Manual re-run of the live-site check (SP2: a workflow_run trigger has no delivery guarantee, so the deploy workflow runs the
+# Manual re-run of the live-site check (a workflow_run trigger has no delivery guarantee, so the deploy workflow runs the
 # smoke test itself as a job; this is the fallback when someone wants to check the site again). No secret, read-only token.
 on:
   workflow_dispatch:
