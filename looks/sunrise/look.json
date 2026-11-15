@@ -1,0 +1,41 @@
+{
+  "grammar": 1,
+  "card": {
+    "background": "linear-gradient(160deg, #ff9966 0%, #ff5e62 55%, #b83a75 100%)",
+    "border_radius": "22px",
+    "padding": "16px",
+    "box_shadow": "0 10px 28px rgba(255,94,98,0.4)"
+  },
+  "modules": {
+    "*": {
+      "design": {
+        "color": "#fff7f0",
+        "font_family": "system-ui, sans-serif",
+        "font_weight": "600",
+        "text_shadow": "0 1px 3px rgba(80,20,30,0.45)"
+      }
+    },
+    "icon": {
+      "icon_color": "#fff3c4"
+    },
+    "bar": {
+      "bar_color": "#fff3c4",
+      "bar_background": "rgba(255,255,255,0.28)",
+      "bar_height": "8px"
+    },
+    "slider": {
+      "track_style": "standard",
+      "slider_color": "#fff3c4",
+      "track_color": "rgba(255,255,255,0.3)",
+      "thumb": "circle",
+      "thumb_size": 18
+    },
+    "button": {
+      "design": {
+        "background": "rgba(255,255,255,0.22)",
+        "border_radius": "999px",
+        "border": "1px solid rgba(255,255,255,0.5)"
+      }
+    }
+  }
+}

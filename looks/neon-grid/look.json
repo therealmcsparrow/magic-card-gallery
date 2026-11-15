@@ -1,0 +1,55 @@
+{
+  "grammar": 1,
+  "card": {
+    "background": "linear-gradient(180deg, #0d0820, #07040f)",
+    "border_radius": "10px",
+    "padding": "16px",
+    "border_width": "2px",
+    "border_style": "solid",
+    "border_color": "#ff2bd6",
+    "box_shadow": "0 0 18px rgba(255,43,214,0.55), inset 0 0 14px rgba(0,229,255,0.25)"
+  },
+  "modules": {
+    "*": {
+      "design": {
+        "color": "#d9f7ff",
+        "font_family": "ui-monospace, monospace",
+        "text_transform": "uppercase",
+        "letter_spacing": "1.5px",
+        "animations": [
+          {
+            "preset": "glow-pulse",
+            "target": "module",
+            "trigger": "always",
+            "color": "#ff2bd6",
+            "duration": "3s",
+            "iterations": "infinite"
+          }
+        ]
+      }
+    },
+    "icon": {
+      "icon_color": "#00e5ff"
+    },
+    "bar": {
+      "bar_color": "#00e5ff",
+      "bar_background": "rgba(0,229,255,0.15)",
+      "bar_height": "6px"
+    },
+    "slider": {
+      "track_style": "thin",
+      "slider_color": "#ff2bd6",
+      "track_color": "rgba(255,43,214,0.2)",
+      "thumb": "line",
+      "thumb_glow": 8
+    },
+    "button": {
+      "design": {
+        "background": "transparent",
+        "border": "1px solid #00e5ff",
+        "border_radius": "2px",
+        "color": "#00e5ff"
+      }
+    }
+  }
+}
