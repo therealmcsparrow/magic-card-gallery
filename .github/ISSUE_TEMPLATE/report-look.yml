@@ -1,0 +1,40 @@
+name: Report a look
+description: A look in the gallery is harmful, copied without permission or looks wrong.
+labels: ["look-report"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For a look that holds an action, a template, an entity id or a value that loads an outside address, please use private vulnerability reporting on the Security tab instead of this form.
+  - type: input
+    id: look
+    attributes:
+      label: Look id
+      description: The folder name under `looks/`, or the look's name on its tile.
+    validations:
+      required: true
+  - type: dropdown
+    id: reason
+    attributes:
+      label: What is wrong
+      options:
+        - It is copied from someone else without permission
+        - The licence in meta.json is wrong
+        - The preview does not match the look
+        - It breaks my card
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Magic Card version
+    validations:
+      required: false
+  - type: textarea
+    id: details
+    attributes:
+      label: Details
+      description: Do not paste secrets or personal data.
+    validations:
+      required: true

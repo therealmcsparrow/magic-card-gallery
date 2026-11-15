@@ -1,0 +1,8 @@
+{
+  "card_repo": "therealmcsparrow/magic-card",
+  "card_tag": "v2026.11.05-beta.1",
+  "files": {
+    "vendor/look-kit.mjs": { "asset": "look-kit.mjs", "sha256": "4c2daa208ad1df753cd8e78f9b1cf973aa13c6762e75ea843797530c2f9aca62" },
+    "vendor/look-fixtures.json": { "asset": "look-fixtures.json", "sha256": "17b18e80a94f2d9fb1338954a28ebe2d8d606c7b5e8fc6273751b2c81335714f" }
+  }
+}

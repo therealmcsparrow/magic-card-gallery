@@ -1,0 +1,255 @@
+name: deploy
+
+# One approval per deploy. Order: previews (no secret) -> deploy (environment github-pages, holds the signing key) -> release and smoke
+# (no secret). The signing key is an environment secret, so it reaches the deploy job only after the maintainer approves, and in
+# that job only the one step that builds the index. No job reads a cache or an artifact from another workflow.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+# One group for every deploy; a queued run never cancels one in flight, so the sequence numbers read below stay valid.
+concurrency:
+  group: gallery-deploy
+  cancel-in-progress: false
+
+env:
+  SITE_URL: https://therealmcsparrow.github.io/magic-card-gallery/
+
+jobs:
+  previews:
+    name: previews
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - run: npm ci --ignore-scripts
+
+      # Submitted images are decoded here, in a job with no secret. Only the re-encoded files leave it.
+      - name: Re-encode every preview
+        env:
+          OUT_DIR: ${{ runner.temp }}/previews
+        run: |
+          node --input-type=module -e '
+            import fs from "node:fs";
+            import path from "node:path";
+            import { reencodePreview } from "./scripts/reencode-preview.mjs";
+            const out = process.env.OUT_DIR;
+            fs.mkdirSync(out, { recursive: true });
+            let bad = 0;
+            for (const id of fs.readdirSync("looks").sort()) {
+              const r = await reencodePreview(fs.readFileSync(path.join("looks", id, "preview.webp")));
+              if (!r.ok) { console.error(`${id}: ${r.code} ${r.message}`); bad++; continue; }
+              fs.writeFileSync(path.join(out, id + ".webp"), r.bytes);
+            }
+            process.exit(bad ? 1 : 0);
+          '
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: previews
+          path: ${{ runner.temp }}/previews
+          if-no-files-found: error
+          retention-days: 1
+
+  deploy:
+    name: deploy
+    needs: previews
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # Waits here for the maintainer's approval; environment secrets exist only from this point.
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    outputs:
+      seq: ${{ steps.build.outputs.seq }}
+      missing_release: ${{ steps.build.outputs.missing_release }}
+      has_live: ${{ steps.live.outputs.has_live }}
+      page_url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - run: npm ci --ignore-scripts
+
+      # Same run only: no run-id, no other workflow.
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: previews
+          path: ${{ runner.temp }}/previews
+
+      # Looks are re-checked on main; images are not decoded here (the re-encoded previews are only hashed).
+      - name: Check looks
+        run: |
+          node -e 'import("./scripts/check-looks.mjs").then(async (m) => { const r = await m.checkLooks(".", { reencode: false }); for (const f of r.failures) console.error(f.code, f.path, f.message); process.exit(r.ok ? 0 : 1); })'
+
+      # L: the verified live index (0 when there is none yet). The previous index is kept for the smoke test.
+      - name: Read the live sequence (L)
+        id: live
+        run: node scripts/build-index.mjs live --base "$SITE_URL" --out "$RUNNER_TEMP/previous-index.json"
+
+      # N: the newest index-<seq> release.
+      - name: Read the newest release (N)
+        id: newest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          n=$(gh release list --repo "$GITHUB_REPOSITORY" --limit 1000 --json tagName \
+            --jq '[.[].tagName | select(test("^index-[0-9]+$")) | ltrimstr("index-") | tonumber] | max // 0')
+          [[ "$n" =~ ^[0-9]+$ ]]
+          echo "newest=$n" >> "$GITHUB_OUTPUT"
+
+      # The key is on this step only. build-index refuses unless L = N or L = N + 1, signs L + 1 and verifies it twice.
+      - name: Build and sign the index
+        id: build
+        env:
+          LOOK_INDEX_SIGNING_KEY: ${{ secrets.LOOK_INDEX_SIGNING_KEY }}
+          LIVE_SEQ: ${{ steps.live.outputs.live_seq }}
+          NEWEST_SEQ: ${{ steps.newest.outputs.newest }}
+        run: |
+          node scripts/build-index.mjs build \
+            --previews "$RUNNER_TEMP/previews" --out "$RUNNER_TEMP/site" \
+            --live-seq "$LIVE_SEQ" --newest-seq "$NEWEST_SEQ"
+
+      # Only index.json, looks/ and previews/ may be served: regular files, no links.
+      - name: Check the site folder
+        run: |
+          set -euo pipefail
+          if find "$RUNNER_TEMP/site" ! -type f ! -type d | grep -q .; then echo "non-regular file in the site folder"; exit 1; fi
+          find "$RUNNER_TEMP/site" -type f -printf '%P\n' | grep -Ev '^(index\.json|looks/[0-9a-f]{128}\.json|previews/[0-9a-f]{128}\.webp)$' && exit 1
+          exit 0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ runner.temp }}/site
+
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+
+      # Public files for the later jobs: the new index and the one that was live before.
+      - name: Collect index files
+        run: |
+          mkdir "$RUNNER_TEMP/index-assets"
+          cp "$RUNNER_TEMP/site/index.json" "$RUNNER_TEMP/index-assets/index.json"
+          if [ -f "$RUNNER_TEMP/previous-index.json" ]; then cp "$RUNNER_TEMP/previous-index.json" "$RUNNER_TEMP/index-assets/previous-index.json"; fi
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: index-assets
+          path: ${{ runner.temp }}/index-assets
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: release
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # No environment and no secret: it only writes releases and the last-good tag with the job token.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: index-assets
+          path: ${{ runner.temp }}/index-assets
+
+      - name: Create releases and move last-good
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SEQ: ${{ needs.deploy.outputs.seq }}
+          MISSING: ${{ needs.deploy.outputs.missing_release }}
+          ASSETS: ${{ runner.temp }}/index-assets
+        run: |
+          set -euo pipefail
+          [[ "$SEQ" =~ ^[0-9]+$ ]]
+          # L = N + 1: the previous deploy never got its release; keep its index (the one that was live) as the missing one.
+          if [ -n "$MISSING" ]; then
+            [[ "$MISSING" =~ ^[0-9]+$ ]]
+            [ -f "$ASSETS/previous-index.json" ]
+            mkdir "$ASSETS/missing"
+            cp "$ASSETS/previous-index.json" "$ASSETS/missing/index.json"
+            gh release create "index-$MISSING" "$ASSETS/missing/index.json" --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" --title "Index $MISSING" --notes "Signed index $MISSING, kept as the rollback reference."
+          fi
+          gh release create "index-$SEQ" "$ASSETS/index.json" --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" --title "Index $SEQ" --notes "Signed index $SEQ, kept as the rollback reference."
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/last-good" >/dev/null 2>&1; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/last-good" -f sha="$GITHUB_SHA" -F force=true >/dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/last-good -f sha="$GITHUB_SHA" >/dev/null
+          fi
+
+  smoke:
+    name: smoke
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: index-assets
+          path: ${{ runner.temp }}/index-assets
+
+      # Polls up to 15 minutes while the edge still serves the old index, then verifies the live site.
+      - name: Smoke test the live site
+        env:
+          PAGE_URL: ${{ needs.deploy.outputs.page_url }}
+          EXPECT_SEQ: ${{ needs.deploy.outputs.seq }}
+          ASSETS: ${{ runner.temp }}/index-assets
+        run: |
+          set -euo pipefail
+          args=(--expect-seq "$EXPECT_SEQ")
+          if [ -f "$ASSETS/previous-index.json" ]; then args+=(--previous "$ASSETS/previous-index.json"); fi
+          node scripts/smoke.mjs "${PAGE_URL%/}/" "${args[@]}"
+
+  smoke-issue:
+    name: smoke-issue
+    needs: smoke
+    if: ${{ always() && needs.smoke.result == 'failure' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # The only job with issues: write. Fixed title and text; the run link comes through env.
+    permissions:
+      issues: write
+    steps:
+      - name: Open an issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create --repo "$GITHUB_REPOSITORY" \
+            --title "Gallery smoke test failed after deploy" \
+            --body "The smoke test of the live gallery failed. The run is at $RUN_URL. Check the live index, then roll back by redeploying the last-good tag if needed."
